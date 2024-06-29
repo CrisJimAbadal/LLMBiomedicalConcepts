@@ -1,0 +1,43 @@
+import os
+import numpy as np
+import faiss
+import pickle
+
+root_dir = "MyFilePath"
+
+
+index = faiss.IndexFlatL2(768)
+id_list = []
+
+for i in range(36, 31017):
+    folder_path = os.path.join(root_dir, str(i))
+    try: 
+        # Verify if the object at the current path is a directory
+        if os.path.isdir(folder_path):
+            # Iterate over the .npy files within the current directory
+            file_vectors = []
+            for file_name in os.listdir(folder_path):
+                if file_name.endswith('embedded_' + str(i) + '.npy'):
+                    file_path = os.path.join(folder_path, file_name)
+                    print(i)
+                    # Load the embedding vectors from the .npy file
+                    vectors = np.load(file_path)
+                    file_vectors.extend(vectors)
+                    num_vectors = vectors.shape[0]
+                    id = i
+                    id_list.extend([id] * num_vectors)
+                    # Add the vectors to the FAISS index
+                    
+                    for v in vectors:
+                        index.add(np.expand_dims(v, axis=0))
+
+
+                     
+                     
+    except:
+        pass
+
+faiss.write_index(index, 'siamese_embeddings.index')
+dir_ids = "MyFilePath/id_list.pkl"
+with open(dir_ids, 'wb') as f:
+        pickle.dump(id_list, f)
