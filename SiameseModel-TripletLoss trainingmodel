@@ -1,0 +1,161 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import numpy as np
+import os
+import random
+from torch.utils.data import DataLoader
+
+#Siamese Network
+    
+class SiameseNetwork(nn.Module):
+    def __init__(self, embedding_size):
+        super(SiameseNetwork, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(embedding_size, embedding_size),  
+            nn.ReLU(),  
+            nn.Linear(embedding_size, embedding_size),  # Second hidden layer
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size),  # Third hidden layer
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size)  # Output layer
+        )
+        
+        
+   
+"""we have 3 inputs: anchor, positive, negative
+self.forward_one is a function that applies a forward pass through a layer of the neural network.
+The resulting embeddings (anchor_embedding, positive_embedding, and negative_embedding) are 
+representations of the input samples after the forward pass through the neural network."""
+    def forward(self, anchor, positive, negative):        
+        anchor_embedding = self.net(anchor)       
+        positive_embedding = self.net(positive)       
+        negative_embedding = self.net(negative)
+        
+        return anchor_embedding, positive_embedding, negative_embedding
+        
+
+"""Triplet Loss: triplet loss for triplets of embeddings
+takes a pair of vectors and trains the embeddings so that 
+the distance between them is minimized if they're from the 
+same class and is greater than some margin value if they represent 
+different classes."""
+
+class TripletLoss(nn.Module):
+  
+    def __init__(self, margin=1.0):
+        super(TripletLoss, self).__init__()
+        self.margin = margin  
+    
+    def forward(self, anchor, positive, negative):
+        
+        min_size = min(anchor.size(0), positive.size(0), negative.size(0))
+
+        anchor_indices = torch.randperm(anchor.size(0))[:min_size]
+        positive_indices = torch.randperm(positive.size(0))[:min_size]
+        negative_indices = torch.randperm(negative.size(0))[:min_size]
+        
+        anchor = anchor[anchor_indices]
+        positive = positive[positive_indices]
+        negative = negative[negative_indices]
+         
+        distance_positive = (anchor - positive).pow(2).sum(0)
+        
+        distance_negative = (anchor - negative).pow(2).sum(0)
+       
+        loss = F.relu(distance_positive - distance_negative + self.margin)
+        
+        return loss.mean()
+
+#Reading the npy files
+def read_npy_binary(file_path):
+    try:
+    
+        binary_data = np.load(file_path, mmap_mode = 'r', allow_pickle=True)
+    
+        return binary_data
+    except FileNotFoundError:
+        pass
+
+def getmyvalues(positive_batch, negative_batch):
+ 
+    anchor_indices = np.random.randint(0, len(positive_batch), size=(len(positive_batch)))
+    positive_indices = np.random.randint(0, len(positive_batch), size=(len(positive_batch)))
+    negative_indices = np.random.randint(0, len(negative_batch), size=(len(negative_batch)))
+
+    anchor = positive_batch[anchor_indices]
+    positive = positive_batch[positive_indices]
+    negative = negative_batch[negative_indices] 
+
+    anchor = anchor.to(torch.float64)
+    positive = positive.to(torch.float64)
+    negative = negative.to(torch.float64)
+    
+   
+    return anchor, positive, negative
+    
+# Set your desired embedding size and other parameters
+
+embedding_size1 = 768
+#The number of epochs indicates the number of times the model processes the same batch
+num_epochs = 10
+#Smaller learning rate is better, but there is a larger risk of overfitting
+learning_rate = 0.001
+
+model = SiameseNetwork(embedding_size1).to(torch.float64)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+triplet_loss = TripletLoss()
+
+for i in range(0, 2):
+    for posnum in range (36, 31016):
+        file_path = "MyFilePath"
+        
+        positive_folder_path = os.path.join(file_path, str(posnum) + "/" + str(posnum) + ".npy")
+        negnum = random.randint(36, 31016)
+        negative_folder_path = os.path.join(file_path, str(negnum) + "/" + str(negnum) + ".npy")
+        
+        # Create instances of your custom datasets
+        positive_dataset = read_npy_binary(positive_folder_path)
+        negative_dataset = read_npy_binary(negative_folder_path)
+
+        #Batch size of 8 specifies that each batch will contain 8 samples
+        #Smaller batch sizes result in more frequent gradient updates, which can sometimes lead to faster convergence. 
+        #This is because the model's weights are updated more often within each epoch.
+        positive_dataloader = DataLoader(positive_dataset, batch_size = 8)
+        negative_dataloader = DataLoader(negative_dataset, batch_size = 8)
+        
+        num_iter = 5
+        # Training loop
+        losses = []
+        try:
+            for epoch in range(num_epochs):
+                total_loss = 0.0
+    
+                try:
+                    for pos_batch, neg_batch in zip(positive_dataloader, negative_dataloader):
+                        
+                        optimizer.zero_grad()
+                       
+                        anchor, positive, negative = getmyvalues(pos_batch, neg_batch)
+                        output_anchor, output_positive, output_negative = model(anchor, positive, negative)
+                        loss = triplet_loss(output_anchor, output_positive, output_negative)
+                                   
+                        #calculates the gradients of the loss function with respect to the model parameters
+                        loss.backward()
+                        #updates the model parameters based on the computed gradients and the optimization algorithm's update rule
+                        optimizer.step()
+                                    
+                                
+                        total_loss += loss.item()
+                
+                    average_loss = total_loss / (len(positive_dataloader)*num_epochs)
+                    losses.append(average_loss)
+                    print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {average_loss:.4f}")
+                   
+                except TypeError:
+                    pass
+        except ZeroDivisionError:
+            pass
+model_path = "MyFilePath/MyModel.pth"
+torch.save(model.state_dict(), model_path)
