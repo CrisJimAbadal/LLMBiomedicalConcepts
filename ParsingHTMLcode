@@ -1,0 +1,44 @@
+import os
+from bs4 import BeautifulSoup
+
+new_file = os.path.join(filepath, "Phrases.txt")
+             
+try: 
+   file = os.path.join(filepath, "content.html")
+   with open(file, 'r', encoding = 'utf-8') as f:  
+       htmlfile = f.read()
+   f.close()
+except FileNotFoundError:
+    print(f"File '{file}' not found. Please check the file path.")
+except IOError as e:
+    print(f"Error reading the file: {e}")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+                
+                
+                
+soup = BeautifulSoup(htmlfile, 'html.parser')
+try:
+   "The tag can be modified depending on the structure of the HTML and what information you want to extract"
+   text = soup.find_all('p').text
+except AttributeError:
+    "This function extracts all the text in the HTML, you must also consider that unwanted text will also be extracted"
+    text = soup.body.get_text()
+                    
+    
+with open(new_file, 'w', encoding = 'utf-8') as f1:
+   try:
+       for t in text.split('.'):
+           f1.write(str(t).encode('latin-1').decode('utf-8') + '\n')
+       f1.close()
+   except Exception as e:
+       print(f"An error occurred: {e}")
+                        
+       
+    
+        
+                            
+
+
+
+parsinghtmlfunction()
