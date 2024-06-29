@@ -1,0 +1,36 @@
+import os
+from langchain.embeddings import HuggingFaceEmbeddings
+import pandas as pd
+import numpy as np
+
+def embeddingcode():
+    
+    path = "MyFilePath"
+    for i in range(0, 31016):
+        pt = i
+        print(i)
+        filepath = os.path.join(path, str(pt))
+        textfile = os.path.join(filepath, "Phrases.txt")
+        try:
+            with open(textfile, 'r', encoding = 'utf-8') as f1:
+                text = f1.readlines()
+            f1.close()
+            
+            recpath = "MyFilePath"
+            
+            embeddingfile = os.path.join(recpath, str(i) +".npy")
+            embedding_model = HuggingFaceEmbeddings()
+            
+            vectors = embedding_model.embed_documents(text)
+            embeddings = pd.DataFrame(vectors)
+            
+            with open(embeddingfile, 'wb') as fb:
+                np.save(fb, embeddings)
+            fb.close()
+        except:
+            continue
+    
+    
+    
+    
+embeddingcode()
