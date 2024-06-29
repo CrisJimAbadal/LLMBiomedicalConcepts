@@ -1,0 +1,65 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+
+#Siamese Network
+    
+class SiameseNetwork(nn.Module):
+    def __init__(self, embedding_size):
+        super(SiameseNetwork, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(embedding_size, embedding_size),  
+            nn.ReLU(),  
+            nn.Linear(embedding_size, embedding_size),  # Second hidden layer
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size),  # Third hidden layer
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size)  # Output layer
+        )
+        
+        
+   
+"""we have 3 inputs: anchor, positive, negative
+self.forward_one is a function that applies a forward pass through a layer of the neural network.
+The resulting embeddings (anchor_embedding, positive_embedding, and negative_embedding) are 
+representations of the input samples after the forward pass through the neural network."""
+    def forward(self, anchor, positive, negative):        
+        anchor_embedding = self.net(anchor)       
+        positive_embedding = self.net(positive)       
+        negative_embedding = self.net(negative)
+        
+        return anchor_embedding, positive_embedding, negative_embedding
+        
+
+"""Triplet Loss: triplet loss for triplets of embeddings
+takes a pair of vectors and trains the embeddings so that 
+the distance between them is minimized if they're from the 
+same class and is greater than some margin value if they represent 
+different classes."""
+
+class TripletLoss(nn.Module):
+  
+    def __init__(self, margin=1.0):
+        super(TripletLoss, self).__init__()
+        self.margin = margin  
+    
+    def forward(self, anchor, positive, negative):
+        
+        min_size = min(anchor.size(0), positive.size(0), negative.size(0))
+
+        anchor_indices = torch.randperm(anchor.size(0))[:min_size]
+        positive_indices = torch.randperm(positive.size(0))[:min_size]
+        negative_indices = torch.randperm(negative.size(0))[:min_size]
+        
+        anchor = anchor[anchor_indices]
+        positive = positive[positive_indices]
+        negative = negative[negative_indices]
+         
+        distance_positive = (anchor - positive).pow(2).sum(0)
+        
+        distance_negative = (anchor - negative).pow(2).sum(0)
+       
+        loss = F.relu(distance_positive - distance_negative + self.margin)
+        
+        return loss.mean()
