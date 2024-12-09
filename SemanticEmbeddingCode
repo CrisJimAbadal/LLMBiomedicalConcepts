@@ -1,0 +1,64 @@
+import os
+import torch
+import numpy as np
+import torch.nn as nn
+
+"""
+My code to read the files that are stored as binary files '.npy'
+"""
+
+def read_npy_binary(file_path):
+    try:
+    
+        binary_data = np.load(file_path, mmap_mode = 'r', allow_pickle=True)
+    
+        return binary_data
+    except FileNotFoundError:
+        pass
+    
+"""
+Code of my SiameseNetwork used when doing the training
+"""
+class SiameseNetwork(nn.Module):
+    def __init__(self, embedding_size):
+        super(SiameseNetwork, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(embedding_size, embedding_size),
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size),
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size),
+            nn.ReLU(),
+            nn.Linear(embedding_size, embedding_size)
+        )
+        
+    def forward(self, x):
+        return self.net(x)
+ 
+ 
+# Step 1: Load the Siamese Model
+# Load the model
+embedding_size1 = 768
+siamese_model = SiameseNetwork(embedding_size1).to(torch.float64)
+siamese_model.load_state_dict(torch.load('MyFilePath/MyModel.pth'))
+siamese_model.eval()
+
+# Process files
+data_dir = 'MyFilePath'
+for num in range(767, 31017):
+    print(num)
+    data_path = os.path.join(data_dir, str(num), str(num) + '.npy')
+    dataset = read_npy_binary(data_path)
+    
+    encoded_vectors = []
+    try:
+        with torch.no_grad():
+            for data in dataset:
+                data_tensor = torch.tensor(data, dtype=torch.float64)  
+                encoded_vector = siamese_model(data_tensor)
+                encoded_vectors.append(encoded_vector.cpu().numpy())
+        
+        output_file = os.path.join(data_dir, str(num), 'embedded_' + str(num) + '.npy')
+        np.save(output_file, encoded_vectors)
+    except  TypeError:
+        continue

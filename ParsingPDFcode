@@ -1,0 +1,45 @@
+import os
+import fitz
+
+pdft = os.path.join(filepath, "content.pdf")
+                
+lines = []
+with fitz.open(pdft) as pdf_document:
+    num_pages = pdf_document.page_count
+                    
+    for page_num in range(num_pages):
+        page = pdf_document[page_num]
+        page_text = page.get_text()
+        phrases = page_text.split('\n')
+        lines.extend(phrases)
+                
+"file that contains a series of words that are what the file talks about"                
+entityfile = os.path.join(filepath, "nombre.txt")
+"File that the information extracted from the pdf will be stored"
+phrasefile = os.path.join(filepath, "Phrases.txt")
+                
+#check if the entity is in the text
+urlstring = []
+                                       
+with open(entityfile,'r') as f:  
+    urlstring = f.read()                        
+f.close()        
+                      
+                
+try:
+    for j in range(0, len(lines)):
+        for i in range(0, len(urlstring)):
+            if(str(urlstring[i].lower()) in str(lines[j]).lower()):
+                  Flag = True
+                  with  open(phrasefile, 'w', encoding ='utf-8') as file:
+                      for h in range(j, len(lines)):
+                          "Series of stopwords that if appeared in the phrase they are eliminated as they are not medically relevant"
+                          if ('cookies' not in str(lines[h].lower())) and ('página' not in  str(lines[h].lower())) and ('?' not in str(lines[h])) and (lines[h] != '\n') and ('web' not in  str(lines[h].lower())) and ('ingles' not in  str(lines[h].lower())) and ('español' not in  str(lines[h].lower())) and ('política' not in  str(lines[h].lower())) and ('privacidad' not in  str(lines[h].lower())) and ('cláusulas' not in  str(lines[h].lower())) and ('empresas' not in str(lines[h].lower())) and ('correo electrónico' not in str(lines[h].lower())) and ('rechazar' not in str(lines[h].lower())):        
+                                file.write(str(lines[h]) + '\n')
+                                          
+                      if Flag == True:
+                         file.close()
+                         raise StopIteration
+except StopIteration:
+    pass    
+           
